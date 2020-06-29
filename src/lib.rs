@@ -139,4 +139,33 @@ mod tests {
             bisect_left_38: (vec![1, 2, 2, 3, 3, 3, 4, 4, 4, 4], 5, 10),
         },
     }
+
+    proptest! {
+
+        #[test]
+        fn test_bisect_left(
+            mut nums in prop::collection::vec(any::<u32>(), 0..500),
+            num in any::<u32>()
+        ) {
+            nums.sort();
+
+            let i = bisect_left(&nums, &num);
+
+            assert!(nums[..i].iter().all(|&x| x < num));
+            assert!(nums[i..].iter().all(|&x| x >= num));
+        }
+
+        #[test]
+        fn test_bisect_right(
+            mut nums in prop::collection::vec(any::<u32>(), 0..500),
+            num in any::<u32>()
+        ) {
+            nums.sort();
+
+            let i = bisect_right(&nums, &num);
+
+            assert!(nums[..i].iter().all(|&x| x <= num));
+            assert!(nums[i..].iter().all(|&x| x > num));
+        }
+    }
 }
