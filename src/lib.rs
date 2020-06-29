@@ -1,6 +1,14 @@
 // TODO: lo/hi parameters for searching/sorting within a slice of `a`
-// TODO: Property based tests
 // TODO: Alias bisect = bisect_right, insort=insort_right
+
+pub fn insort_right<T>(a: &mut Vec<T>, x: T)
+where
+    T: PartialOrd,
+{
+    let lo = bisect_right(a, &x);
+    a.insert(lo, x);
+}
+
 pub fn bisect_right<T>(a: &Vec<T>, x: &T) -> usize
 where
     T: PartialOrd,
@@ -16,6 +24,14 @@ where
         }
     }
     lo
+}
+
+pub fn insort_left<T>(a: &mut Vec<T>, x: T)
+where
+    T: PartialOrd,
+{
+    let lo = bisect_left(a, &x);
+    a.insert(lo, x);
 }
 
 pub fn bisect_left<T>(a: &Vec<T>, x: &T) -> usize
@@ -39,6 +55,9 @@ where
 mod tests {
 
     use super::*;
+    use proptest::prelude::*;
+    use std::collections::HashSet;
+    use std::iter::FromIterator;
 
     macro_rules! bisect_tests {
         ($($func:ident { $($name:ident: $value:expr,)*},)*) => {
@@ -166,6 +185,32 @@ mod tests {
 
             assert!(nums[..i].iter().all(|&x| x <= num));
             assert!(nums[i..].iter().all(|&x| x > num));
+        }
+
+        #[test]
+        fn test_insort_vs_vec_sort(
+            digits in prop::collection::vec(0..10, 0..500)
+        ) {
+            let left_digits = HashSet::<i32>::from_iter(vec![0, 2, 4, 6, 8]);
+            let mut insorted = vec![];
+
+            for digit in digits {
+                let f = if  left_digits.contains(&digit) {
+                    insort_left
+                } else {
+                    insort_right
+                };
+
+                f(&mut insorted, digit);
+            }
+
+            let vec_sorted = {
+                let mut v = insorted.clone();
+                v.sort();
+                v
+            };
+
+            assert_eq!(vec_sorted, insorted);
         }
     }
 }
