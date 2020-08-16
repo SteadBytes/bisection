@@ -4,7 +4,7 @@
 /// If `a` contains `x`, insert it just *after* the *rightmost* occurence of `x`.
 pub fn insort_right_slice<T>(a: &mut Vec<T>, x: T, lo: Option<usize>, hi: Option<usize>)
 where
-    T: PartialOrd,
+    T: Ord,
 {
     let lo = bisect_right_slice(a, &x, lo, hi);
     a.insert(lo, x);
@@ -14,7 +14,7 @@ where
 /// If `a` contains `x`, insert it just *after* the *rightmost* occurence of `x`.
 pub fn insort_right<T>(a: &mut Vec<T>, x: T)
 where
-    T: PartialOrd,
+    T: Ord,
 {
     insort_right_slice(a, x, None, None);
 }
@@ -28,7 +28,7 @@ where
 ///   *rightmost* `x`.
 pub fn bisect_right_slice<T>(a: &Vec<T>, x: &T, lo: Option<usize>, hi: Option<usize>) -> usize
 where
-    T: PartialOrd,
+    T: Ord,
 {
     let mut lo = lo.unwrap_or(0);
     let mut hi = hi.unwrap_or(a.len());
@@ -51,7 +51,7 @@ where
 ///   *rightmost* occurence of `x`.
 pub fn bisect_right<T>(a: &Vec<T>, x: &T) -> usize
 where
-    T: PartialOrd,
+    T: Ord,
 {
     bisect_right_slice(a, x, None, None)
 }
@@ -59,7 +59,7 @@ where
 /// If `a` contains `x`, insert it just *before* the *leftmost* occurence of `x`.
 pub fn insort_left_slice<T>(a: &mut Vec<T>, x: T, lo: Option<usize>, hi: Option<usize>)
 where
-    T: PartialOrd,
+    T: Ord,
 {
     let lo = bisect_left_slice(a, &x, lo, hi);
     a.insert(lo, x);
@@ -69,7 +69,7 @@ where
 /// If `a` contains `x`, insert it just *before* the *leftmost* occurence of `x`.
 pub fn insort_left<T>(a: &mut Vec<T>, x: T)
 where
-    T: PartialOrd,
+    T: Ord,
 {
     insort_left_slice(a, x, None, None);
 }
@@ -83,7 +83,7 @@ where
 ///   *leftmost* `x`.
 pub fn bisect_left_slice<T>(a: &Vec<T>, x: &T, lo: Option<usize>, hi: Option<usize>) -> usize
 where
-    T: PartialOrd,
+    T: Ord,
 {
     let mut lo = lo.unwrap_or(0);
     let mut hi = hi.unwrap_or(a.len());
@@ -106,7 +106,7 @@ where
 ///   *leftmost* `x`.
 pub fn bisect_left<T>(a: &Vec<T>, x: &T) -> usize
 where
-    T: PartialOrd,
+    T: Ord,
 {
     bisect_left_slice(a, x, None, None)
 }
@@ -122,10 +122,9 @@ mod tests {
     #[derive(Clone, Debug)]
     struct BisectTest<T: 'static>
     where
-        T: PartialOrd,
+        T: Ord,
     {
         name: &'static str,
-        // direction: TestDirection,
         a: &'static [T],
         x: T,
         expected_index: usize,
@@ -137,7 +136,7 @@ mod tests {
         Right,
     }
 
-    type TestCollection<T: PartialOrd + Clone> = &'static [BisectTest<T>];
+    type TestCollection<T: Ord + Clone> = &'static [BisectTest<T>];
 
     macro_rules! t {
         ($name:ident, $a:expr, $x:expr, $expected_index:expr) => {
@@ -185,31 +184,6 @@ mod tests {
         t!(ints_right_31, &[1, 2, 2, 3, 3, 3, 4, 4, 4, 4], 5, 10),
     ];
 
-    const RIGHT_FLOAT_CASES: TestCollection<f32> = &[
-        t!(floats_right_0, &[1.0, 2.0], 1.5, 1),
-        t!(floats_right_1, &[1.0, 1.0, 2.0, 2.0], 1.5, 2),
-        t!(floats_right_2, &[1.0, 2.0, 3.0], 1.5, 1),
-        t!(floats_right_3, &[1.0, 2.0, 3.0], 2.5, 2),
-        t!(
-            floats_right_4,
-            &[1.0, 2.0, 2.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0, 4.0],
-            1.5,
-            1
-        ),
-        t!(
-            floats_right_5,
-            &[1.0, 2.0, 2.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0, 4.0],
-            3.0,
-            6
-        ),
-        t!(
-            floats_right_6,
-            &[1.0, 2.0, 2.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0, 4.0],
-            2.5,
-            3
-        ),
-    ];
-
     const LEFT_INT_CASES: TestCollection<i32> = &[
         t!(ints_left_0, &[], 1, 0),
         t!(ints_left_1, &[1], 0, 0),
@@ -245,61 +219,29 @@ mod tests {
         t!(ints_left_31, &[1, 2, 2, 3, 3, 3, 4, 4, 4, 4], 5, 10),
     ];
 
-    const LEFT_FLOAT_CASES: TestCollection<f32> = &[
-        t!(floats_left_0, &[1.0, 2.0], 1.5, 1),
-        t!(floats_left_1, &[1.0, 1.0, 2.0, 2.0], 1.5, 2),
-        t!(floats_left_2, &[1.0, 2.0, 3.0], 1.5, 1),
-        t!(floats_left_3, &[1.0, 2.0, 3.0], 2.5, 2),
-        t!(
-            floats_left_4,
-            &[1.0, 2.0, 2.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0, 4.0],
-            1.5,
-            1
-        ),
-        t!(
-            floats_left_5,
-            &[1.0, 2.0, 2.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0, 4.0],
-            2.5,
-            3
-        ),
-        t!(
-            floats_left_6,
-            &[1.0, 2.0, 2.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0, 4.0],
-            3.5,
-            6
-        ),
-    ];
-
     #[test]
     fn bisect_right_precomputed() {
         run_bisect_tests(TestDirection::Right, RIGHT_INT_CASES);
-        run_bisect_tests(TestDirection::Right, RIGHT_FLOAT_CASES);
     }
 
     #[test]
     fn bisect_left_precomputed() {
         run_bisect_tests(TestDirection::Left, LEFT_INT_CASES);
-        run_bisect_tests(TestDirection::Left, LEFT_FLOAT_CASES);
     }
 
     #[test]
     fn bisect_right_slice_precomputed() {
         run_bisect_slice_tests(TestDirection::Right, RIGHT_INT_CASES);
-        run_bisect_slice_tests(TestDirection::Right, RIGHT_FLOAT_CASES);
     }
 
     #[test]
     fn bisect_left_slice_precomputed() {
         run_bisect_slice_tests(TestDirection::Left, LEFT_INT_CASES);
-        run_bisect_slice_tests(TestDirection::Left, LEFT_FLOAT_CASES);
     }
 
     // TODO: Just put function pointer in test cases?
 
-    fn run_bisect_tests<T: Clone + PartialOrd>(
-        direction: TestDirection,
-        test_cases: TestCollection<T>,
-    ) {
+    fn run_bisect_tests<T: Clone + Ord>(direction: TestDirection, test_cases: TestCollection<T>) {
         let bisect_func = match direction {
             TestDirection::Left => bisect_left,
             TestDirection::Right => bisect_right,
@@ -311,7 +253,7 @@ mod tests {
         }
     }
 
-    fn run_bisect_slice_tests<T: Clone + PartialOrd>(
+    fn run_bisect_slice_tests<T: Clone + Ord>(
         direction: TestDirection,
         test_cases: TestCollection<T>,
     ) {
