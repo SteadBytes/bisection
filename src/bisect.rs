@@ -1,6 +1,14 @@
 // TODO: Doctests
 
-/// Insert `x` in `a[lo..hi]`, keeping it sorted assuming `a` is sorted.
+/// Insert `x` in `a[lo..hi]`, keeping it sorted assuming `a` is sorted. `None` for either `lo`
+/// or `hi` indicates "from the start" or "to the end" respecitvely:
+///
+/// ```text
+/// lo = None, hi = Some(x) -> a[..x]
+/// lo = Some(x), hi = None -> a[x..]
+/// lo = None, hi = None -> a[..]
+/// ```
+///
 /// If `a` contains `x`, insert it just *after* the *rightmost* occurence of `x`.
 pub fn insort_right_slice<T>(a: &mut Vec<T>, x: T, lo: Option<usize>, hi: Option<usize>)
 where
@@ -20,7 +28,14 @@ where
 }
 
 /// Return the index where `x` should be inserted in `a[lo..hi]`, assuming `a`
-/// is sorted.
+/// is sorted. `None` for either `lo` or `hi` indicates "from the start" or "to the end"
+/// respecitvely:
+///
+/// ```text
+/// lo = None, hi = Some(x) -> a[..x]
+/// lo = Some(x), hi = None -> a[x..]
+/// lo = None, hi = None -> a[..]
+/// ```
 ///
 /// The return value `i` is such that all `e` in `a[..i]` have `e <= x`, and
 /// all `e` in `a[i..]` have `e > x`.
@@ -55,7 +70,15 @@ where
 {
     bisect_right_slice(a, x, None, None)
 }
-/// Insert `x` in `a[lo..hi]`, keeping it sorted assuming `a` is sorted.
+/// Insert `x` in `a[lo..hi]`, keeping it sorted assuming `a` is sorted. `None` for either `lo`
+/// or `hi` indicates "from the start" or "to the end" respecitvely:
+///
+/// ```text
+/// lo = None, hi = Some(x) -> a[..x]
+/// lo = Some(x), hi = None -> a[x..]
+/// lo = None, hi = None -> a[..]
+/// ```
+///
 /// If `a` contains `x`, insert it just *before* the *leftmost* occurence of `x`.
 pub fn insort_left_slice<T>(a: &mut Vec<T>, x: T, lo: Option<usize>, hi: Option<usize>)
 where
@@ -75,7 +98,14 @@ where
 }
 
 /// Return the index where `x` should be inserted in `a[lo..hi]`, assuming `a`
-/// is sorted.
+/// is sorted. `None` for either `lo` or `hi` indicates "from the start" or "to the end"
+/// respecitvely:
+///
+/// ```text
+/// lo = None, hi = Some(x) -> a[..x]
+/// lo = Some(x), hi = None -> a[x..]
+/// lo = None, hi = None -> a[..]
+/// ```
 ///
 /// The return value `i` is such that all `e` in `a[..i]` have `e < x`, and
 /// all `e` in `a[i..]` have `e >= x`.
