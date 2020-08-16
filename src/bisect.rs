@@ -26,7 +26,7 @@ where
 /// all `e` in `a[i..]` have `e > x`.
 /// - If `a` contains `x`, `a.insert(i, x)` will insert just *after* the
 ///   *rightmost* `x`.
-pub fn bisect_right_slice<T>(a: &Vec<T>, x: &T, lo: Option<usize>, hi: Option<usize>) -> usize
+pub fn bisect_right_slice<T>(a: &[T], x: &T, lo: Option<usize>, hi: Option<usize>) -> usize
 where
     T: Ord,
 {
@@ -49,7 +49,7 @@ where
 /// all `e` in `a[i..]` have `e > x`.
 /// - If `a` contains `x`, `a.insert(i, x)` will insert just *after* the
 ///   *rightmost* occurence of `x`.
-pub fn bisect_right<T>(a: &Vec<T>, x: &T) -> usize
+pub fn bisect_right<T>(a: &[T], x: &T) -> usize
 where
     T: Ord,
 {
@@ -81,7 +81,7 @@ where
 /// all `e` in `a[i..]` have `e >= x`.
 /// - If `a` contains `x`, `a.insert(i, x)` will insert just *before* the
 ///   *leftmost* `x`.
-pub fn bisect_left_slice<T>(a: &Vec<T>, x: &T, lo: Option<usize>, hi: Option<usize>) -> usize
+pub fn bisect_left_slice<T>(a: &[T], x: &T, lo: Option<usize>, hi: Option<usize>) -> usize
 where
     T: Ord,
 {
@@ -104,7 +104,7 @@ where
 /// all `e` in `a[i..]` have `e >= x`.
 /// - If `a` contains `x`, `a.insert(i, x)` will insert just *before* the
 ///   *leftmost* `x`.
-pub fn bisect_left<T>(a: &Vec<T>, x: &T) -> usize
+pub fn bisect_left<T>(a: &[T], x: &T) -> usize
 where
     T: Ord,
 {
