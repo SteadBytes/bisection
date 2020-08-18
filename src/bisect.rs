@@ -1,4 +1,6 @@
-// TODO: Doctests
+use std::cmp::Ordering;
+
+// TODO: Doctest examples
 
 /// Insert `x` in `a[lo..hi]`, keeping it sorted assuming `a` is sorted. `None` for either `lo`
 /// or `hi` indicates "from the start" or "to the end" respecitvely:
@@ -14,8 +16,7 @@ pub fn insort_right_slice<T>(a: &mut Vec<T>, x: T, lo: Option<usize>, hi: Option
 where
     T: Ord,
 {
-    let lo = bisect_right_slice(a, &x, lo, hi);
-    a.insert(lo, x);
+    insort_right_slice_by(a, x, lo, hi, T::cmp);
 }
 
 /// Insert `x` in `a`, keeping it sorted assuming `a` is sorted.
@@ -24,7 +25,50 @@ pub fn insort_right<T>(a: &mut Vec<T>, x: T)
 where
     T: Ord,
 {
-    insort_right_slice(a, x, None, None);
+    insort_right_by(a, x, T::cmp);
+}
+
+/// Insert `x` in `a`, keeping it sorted, assuming `a` is sorted, according to a comparator
+/// function.
+///
+/// The comparator function should implement an order consistent with the sort order of the
+/// underlying slice.
+///
+/// If `a` contains `x`, insert it just *after* the *rightmost* occurence of `x`.
+pub fn insort_right_by<T, F>(a: &mut Vec<T>, x: T, f: F)
+where
+    T: Ord,
+    F: FnMut(&T, &T) -> Ordering,
+{
+    insort_right_slice_by(a, x, None, None, f);
+}
+
+/// Insert x in `a[lo..hi]`, keeping it sorted, assuming `a` is sorted, according to a comparator
+/// function.
+///
+/// The comparator function should implement an order consistent with the sort order of the
+/// underlying slice.
+///
+/// `None` for either `lo` or `hi` indicates "from the start" or "to the end" respecitvely:
+///
+/// ```text
+/// lo = None, hi = Some(x) -> a[..x]
+/// lo = Some(x), hi = None -> a[x..]
+/// lo = None, hi = None -> a[..]
+/// ```
+///
+/// If `a` contains `x`, insert it just *after* the *rightmost* occurence of `x`.
+pub fn insort_right_slice_by<T, F>(
+    a: &mut Vec<T>,
+    x: T,
+    lo: Option<usize>,
+    hi: Option<usize>,
+    mut f: F,
+) where
+    F: FnMut(&T, &T) -> Ordering,
+{
+    let lo = bisect_right_slice_by(a, lo, hi, |p| f(&x, p));
+    a.insert(lo, x);
 }
 
 /// Return the index where `x` should be inserted in `a[lo..hi]`, assuming `a`
@@ -45,17 +89,7 @@ pub fn bisect_right_slice<T>(a: &[T], x: &T, lo: Option<usize>, hi: Option<usize
 where
     T: Ord,
 {
-    let mut lo = lo.unwrap_or(0);
-    let mut hi = hi.unwrap_or(a.len());
-    while lo < hi {
-        let mid = (lo + hi) / 2;
-        if x < &a[mid] {
-            hi = mid;
-        } else {
-            lo = mid + 1;
-        }
-    }
-    lo
+    bisect_right_slice_by(a, lo, hi, |p| x.cmp(p))
 }
 
 /// Return the index where `x` should be inserted in `a`, assuming `a` is sorted.
@@ -70,6 +104,62 @@ where
 {
     bisect_right_slice(a, x, None, None)
 }
+
+/// Return the index where `x` should be inserted in `a`, assuming `a` is sorted, according to
+/// a comparator function.
+///
+/// The comparator function should implement an order consistent with the sort order of the
+/// underlying slice, returning an order code that indicates whethers its argument is `Less`,
+/// `Equal` or `Greater` that the **desired target**.
+///
+/// The return value `i` is such that all `e` in `a[..i]` have `f(e) == Less | f(e) == Equal`, and
+/// all `e` in `a[i..]` have `f(e) == Greater`.
+/// - If `a` contains `x`, `a.insert(i, x)` will insert just *after* the
+///   *rightmost* occurence of `x`.
+pub fn bisect_right_by<T, F>(a: &[T], f: F) -> usize
+where
+    F: FnMut(&T) -> Ordering,
+{
+    bisect_right_slice_by(a, None, None, f)
+}
+
+/// Return the index where a value should be inserted in `a[lo..hi]`, assuming it sorted,
+/// according to a comparator function.
+///
+/// The comparator function should implement an order consistent with the sort order of the
+/// underlying slice, returning an order code that indicates whethers its argument is `Less`,
+/// `Equal` or `Greater` that the **desired target**.
+///
+/// `None` for either `lo` or `hi` indicates "from the start" or "to the end"
+/// respecitvely:
+///
+/// ```text
+/// lo = None, hi = Some(x) -> a[..x]
+/// lo = Some(x), hi = None -> a[x..]
+/// lo = None, hi = None -> a[..]
+/// ```
+///
+/// The return value `i` is such that all `e` in `a[..i]` have `f(e) == Less | f(e) == Equal`, and
+/// all `e` in `a[i..]` have `f(e) == Greater`.
+/// - If `a` contains `x`, `a.insert(i, x)` will insert just *after* the
+///   *rightmost* occurence of `x`.
+pub fn bisect_right_slice_by<T, F>(a: &[T], lo: Option<usize>, hi: Option<usize>, mut f: F) -> usize
+where
+    F: FnMut(&T) -> Ordering,
+{
+    let mut lo = lo.unwrap_or(0);
+    let mut hi = hi.unwrap_or(a.len());
+    while lo < hi {
+        let mid = (lo + hi) / 2;
+        if f(&a[mid]) == Ordering::Less {
+            hi = mid;
+        } else {
+            lo = mid + 1;
+        }
+    }
+    lo
+}
+
 /// Insert `x` in `a[lo..hi]`, keeping it sorted assuming `a` is sorted. `None` for either `lo`
 /// or `hi` indicates "from the start" or "to the end" respecitvely:
 ///
@@ -84,17 +174,61 @@ pub fn insort_left_slice<T>(a: &mut Vec<T>, x: T, lo: Option<usize>, hi: Option<
 where
     T: Ord,
 {
-    let lo = bisect_left_slice(a, &x, lo, hi);
-    a.insert(lo, x);
+    insort_left_slice_by(a, x, lo, hi, T::cmp);
 }
 
 /// Insert `x` in `a`, keeping it sorted assuming `a` is sorted.
+///
 /// If `a` contains `x`, insert it just *before* the *leftmost* occurence of `x`.
 pub fn insort_left<T>(a: &mut Vec<T>, x: T)
 where
     T: Ord,
 {
-    insort_left_slice(a, x, None, None);
+    insort_left_by(a, x, T::cmp);
+}
+
+/// Insert `x` in `a`, keeping it sorted, assuming `a` is sorted, according to a comparator
+/// function.
+///
+/// The comparator function should implement an order consistent with the sort order of the
+/// underlying slice.
+///
+/// If `a` contains `x`, insert it just *before* the *leftmost* occurence of `x`.
+pub fn insort_left_by<T, F>(a: &mut Vec<T>, x: T, f: F)
+where
+    T: Ord,
+    F: FnMut(&T, &T) -> Ordering,
+{
+    insort_left_slice_by(a, x, None, None, f);
+}
+
+/// Insert x in `a[lo..hi]`, keeping it sorted, assuming `a` is sorted, according to a comparator
+/// function.
+///
+/// The comparator function should implement an order consistent with the sort order of the
+/// underlying slice.
+///
+/// `None` for either `lo` or `hi` indicates "from the start" or "to the end"
+/// respecitvely:
+///
+/// ```text
+/// lo = None, hi = Some(x) -> a[..x]
+/// lo = Some(x), hi = None -> a[x..]
+/// lo = None, hi = None -> a[..]
+/// ```
+///
+/// If `a` contains `x`, insert it just *before* the *leftmost* occurence of `x`.
+pub fn insort_left_slice_by<T, F>(
+    a: &mut Vec<T>,
+    x: T,
+    lo: Option<usize>,
+    hi: Option<usize>,
+    mut f: F,
+) where
+    F: FnMut(&T, &T) -> Ordering,
+{
+    let lo = bisect_right_slice_by(a, lo, hi, |p| f(&x, p));
+    a.insert(lo, x);
 }
 
 /// Return the index where `x` should be inserted in `a[lo..hi]`, assuming `a`
@@ -115,17 +249,7 @@ pub fn bisect_left_slice<T>(a: &[T], x: &T, lo: Option<usize>, hi: Option<usize>
 where
     T: Ord,
 {
-    let mut lo = lo.unwrap_or(0);
-    let mut hi = hi.unwrap_or(a.len());
-    while lo < hi {
-        let mid = (lo + hi) / 2;
-        if &a[mid] < x {
-            lo = mid + 1;
-        } else {
-            hi = mid;
-        }
-    }
-    lo
+    bisect_left_slice_by(a, lo, hi, |p| p.cmp(x))
 }
 
 /// Return the index where `x` should be inserted in `a`, assuming `a` is sorted.
@@ -139,6 +263,62 @@ where
     T: Ord,
 {
     bisect_left_slice(a, x, None, None)
+}
+
+/// Return the index where a value should be inserted in `a`, assuming `a` is sorted, according to
+/// a comparator function.
+///
+/// The comparator function should implement an order consistent with the sort order of the
+/// underlying slice, returning an order code that indicates whethers its argument is `Less`,
+/// `Equal` or `Greater` that the **desired target**.
+///
+/// The return value `i` is such that all `e` in `a[..i]` have `f(e) == Less`, and
+/// all `e` in `a[i..]` have `f(e) == Greater | f(e) == Equal`
+/// - If `a` contains `x`, `a.insert(i, x)` will insert just *before* the
+///   *leftmost* `x`.
+pub fn bisect_left_by<T, F>(a: &[T], f: F) -> usize
+where
+    F: FnMut(&T) -> Ordering,
+{
+    bisect_left_slice_by(a, None, None, f)
+}
+
+/// Return the index where a value should be inserted in `a[lo..hi]`, assuming it sorted,
+/// according to a comparator function.
+///
+/// The comparator function should implement an order consistent with the sort order of the
+/// underlying slice, returning an order code that indicates whethers its argument is `Less`,
+/// `Equal` or `Greater` that the **desired target**.
+///
+/// `None` for either `lo` or `hi` indicates "from the start" or "to the end"
+/// respecitvely:
+///
+/// ```text
+/// lo = None, hi = Some(x) -> a[..x]
+/// lo = Some(x), hi = None -> a[x..]
+/// lo = None, hi = None -> a[..]
+/// ```
+///
+/// The return value `i` is such that all `e` in `a[..i]` have `f(e) == Less`, and
+/// all `e` in `a[i..]` have `f(e) == Greater | f(e) == Equal`
+/// - If `a` contains `x`, `a.insert(i, x)` will insert just *before* the
+///   *leftmost* `x`.
+pub fn bisect_left_slice_by<T, F>(a: &[T], lo: Option<usize>, hi: Option<usize>, mut f: F) -> usize
+where
+    F: FnMut(&T) -> Ordering,
+{
+    let mut lo = lo.unwrap_or(0);
+    let mut hi = hi.unwrap_or(a.len());
+    while lo < hi {
+        let mid = (lo + hi) / 2;
+        let cmp = f(&a[mid]);
+        if cmp == Ordering::Less {
+            lo = mid + 1;
+        } else {
+            hi = mid;
+        }
+    }
+    lo
 }
 
 #[cfg(test)]
@@ -269,6 +449,41 @@ mod tests {
         run_bisect_slice_tests(TestDirection::Left, LEFT_INT_CASES);
     }
 
+    #[test]
+    fn test_bisect_left_by() {
+        #[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]
+        struct Person {
+            name: String,
+            age: u32,
+        }
+        impl Person {
+            pub fn new(name: String, age: u32) -> Self {
+                Person { name, age }
+            }
+        }
+        let mut people = vec![
+            Person::new("Zoe".to_string(), 25),
+            Person::new("Al".to_string(), 60),
+            Person::new("John".to_string(), 1),
+        ];
+
+        let new_person = Person::new("Abi".to_string(), 22);
+
+        // Sort by derived natural order (name and age)
+        people.sort();
+        assert_eq!(bisect_left(&people, &new_person), 0);
+
+        // Sort by age only
+        let f = |a: &Person, b: &Person| a.age.cmp(&b.age);
+        people.sort_by(f);
+        assert_eq!(bisect_left_by(&people, |p| f(p, &new_person)), 1);
+
+        // Sort by name only
+        let f = |a: &Person, b: &Person| a.name.cmp(&b.name);
+        people.sort_by(f);
+        assert_eq!(bisect_left_by(&people, |p| f(p, &new_person)), 0);
+    }
+
     // TODO: Just put function pointer in test cases?
 
     fn run_bisect_tests<T: Clone + Ord>(direction: TestDirection, test_cases: TestCollection<T>) {
@@ -329,10 +544,46 @@ mod tests {
         }
     }
 
+    #[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]
+    struct Person {
+        name: String,
+        age: u32,
+    }
+
+    fn arb_person() -> impl Strategy<Value = Person> {
+        ("[a-z]*", 1..100_u32).prop_map(|(name, age)| Person { name, age })
+    }
+
+    fn check_index_right_invariant<T, F>(a: &[T], target: &T, index: usize, mut f: F)
+    where
+        F: FnMut(&T, &T) -> Ordering,
+    {
+        // See `bisect_right_by` docs
+        assert!(a[..index].iter().all(|x| match f(x, &target) {
+            Ordering::Less | Ordering::Equal => true,
+            _ => false,
+        }));
+        assert!(a[index..]
+            .iter()
+            .all(|x| f(x, &target) == Ordering::Greater));
+    }
+
+    fn check_index_left_invariant<T, F>(a: &[T], target: &T, index: usize, mut f: F)
+    where
+        F: FnMut(&T, &T) -> Ordering,
+    {
+        // See `bisect_left_by` docs
+        assert!(a[..index].iter().all(|x| f(x, &target) == Ordering::Less));
+        assert!(a[index..].iter().all(|x| match f(x, &target) {
+            Ordering::Greater | Ordering::Equal => true,
+            _ => false,
+        }));
+    }
+
     proptest! {
 
         #[test]
-        fn test_bisect_left_index_property(
+        fn test_bisect_left_index_invariant(
             mut nums in prop::collection::vec(any::<u32>(), 0..500),
             num in any::<u32>()
         ) {
@@ -340,13 +591,35 @@ mod tests {
 
             let i = bisect_left(&nums, &num);
 
-            // See `bisect_left` docstring
-            assert!(nums[..i].iter().all(|&x| x < num));
-            assert!(nums[i..].iter().all(|&x| x >= num));
+            check_index_left_invariant(&nums, &num, i, u32::cmp);
         }
 
         #[test]
-        fn test_bisect_right_index_property(
+        fn test_bisect_left_by_index_invariant(
+            mut people in prop::collection::vec(arb_person(), 0..500),
+            new_person in arb_person()
+        ) {
+            // Sort by age only
+            let f = |a: &Person, b: &Person| a.age.cmp(&b.age);
+
+            people.sort_by(f);
+
+            let i = bisect_left_by(&people, |p| f(p, &new_person));
+
+            check_index_left_invariant(&people, &new_person, i, f);
+
+            // Sort by name only
+            let f = |a: &Person, b: &Person| a.name.cmp(&b.name);
+
+            people.sort_by(f);
+
+            let i = bisect_left_by(&people, |p| f(p, &new_person));
+
+            check_index_left_invariant(&people, &new_person, i, f);
+        }
+
+        #[test]
+        fn test_bisect_right_index_invariant(
             mut nums in prop::collection::vec(any::<u32>(), 0..500),
             num in any::<u32>()
         ) {
@@ -355,8 +628,32 @@ mod tests {
             let i = bisect_right(&nums, &num);
 
             // See `bisect_right` docstring
-            assert!(nums[..i].iter().all(|&x| x <= num));
-            assert!(nums[i..].iter().all(|&x| x > num));
+            check_index_right_invariant(&nums, &num, i, u32::cmp)
+        }
+
+        #[test]
+        fn test_bisect_right_by_index_invariant(
+            mut people in prop::collection::vec(arb_person(), 0..500),
+            new_person in arb_person()
+        ) {
+            // Sort by age only
+            let f = |a: &Person, b: &Person| a.age.cmp(&b.age);
+
+            people.sort_by(f);
+
+            let i = bisect_right_by(&people, |p| f(&new_person, p));
+
+            check_index_right_invariant(&people, &new_person, i, f);
+
+
+            // Sort by name only
+            let f = |a: &Person, b: &Person| a.name.cmp(&b.name);
+
+            people.sort_by(f);
+
+            let i = bisect_right_by(&people, |p| f(&new_person, p));
+
+            check_index_right_invariant(&people, &new_person, i, f);
         }
 
         #[test]
