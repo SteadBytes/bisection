@@ -452,43 +452,6 @@ mod tests {
         run_bisect_slice_tests(TestDirection::Left, LEFT_INT_CASES);
     }
 
-    #[test]
-    fn test_bisect_left_by() {
-        #[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]
-        struct Person {
-            name: String,
-            age: u32,
-        }
-        impl Person {
-            pub fn new(name: String, age: u32) -> Self {
-                Person { name, age }
-            }
-        }
-        let mut people = vec![
-            Person::new("Zoe".to_string(), 25),
-            Person::new("Al".to_string(), 60),
-            Person::new("John".to_string(), 1),
-        ];
-
-        let new_person = Person::new("Abi".to_string(), 22);
-
-        // Sort by derived natural order (name and age)
-        people.sort();
-        assert_eq!(bisect_left(&people, &new_person), 0);
-
-        // Sort by age only
-        let f = |a: &Person, b: &Person| a.age.cmp(&b.age);
-        people.sort_by(f);
-        assert_eq!(bisect_left_by(&people, |p| f(p, &new_person)), 1);
-
-        // Sort by name only
-        let f = |a: &Person, b: &Person| a.name.cmp(&b.name);
-        people.sort_by(f);
-        assert_eq!(bisect_left_by(&people, |p| f(p, &new_person)), 0);
-    }
-
-    // TODO: Just put function pointer in test cases?
-
     fn run_bisect_tests<T: Clone + Ord>(direction: TestDirection, test_cases: TestCollection<T>) {
         let bisect_func = match direction {
             TestDirection::Left => bisect_left,
