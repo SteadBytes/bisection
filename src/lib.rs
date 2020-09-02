@@ -2,24 +2,23 @@ pub use crate::bisect_right as bisect;
 pub use crate::insort_right as insort;
 
 use std::cmp::Ordering;
+use std::ops::{Bound::*, RangeBounds};
 
 // TODO: Doctest examples
 
-/// Insert `x` in `a[lo..hi]`, keeping it sorted assuming `a` is sorted. `None` for either `lo`
-/// or `hi` indicates "from the start" or "to the end" respecitvely:
-///
-/// ```text
-/// lo = None, hi = Some(x) -> a[..x]
-/// lo = Some(x), hi = None -> a[x..]
-/// lo = None, hi = None -> a[..]
-/// ```
+/// Insert `x` in `a[within]`, keeping it sorted assuming `a` is sorted.
 ///
 /// If `a` contains `x`, insert it just *after* the *rightmost* occurence of `x`.
-pub fn insort_right_slice<T>(a: &mut Vec<T>, x: T, lo: Option<usize>, hi: Option<usize>)
+///
+/// # Panics
+///
+/// Panics if `within` is out of bounds of `a`.
+pub fn insort_right_slice<T, I>(a: &mut Vec<T>, x: T, within: I)
 where
+    I: RangeBounds<usize>,
     T: Ord,
 {
-    insort_right_slice_by(a, x, lo, hi, T::cmp);
+    insort_right_slice_by(a, x, within, T::cmp);
 }
 
 /// Insert `x` in `a`, keeping it sorted assuming `a` is sorted.
@@ -43,56 +42,46 @@ where
     T: Ord,
     F: FnMut(&T, &T) -> Ordering,
 {
-    insort_right_slice_by(a, x, None, None, f);
+    insort_right_slice_by(a, x, .., f);
 }
 
-/// Insert x in `a[lo..hi]`, keeping it sorted, assuming `a` is sorted, according to a comparator
+/// Insert x in `a[within]`, keeping it sorted, assuming `a` is sorted, according to a comparator
 /// function.
 ///
 /// The comparator function should implement an order consistent with the sort order of the
 /// underlying slice.
 ///
-/// `None` for either `lo` or `hi` indicates "from the start" or "to the end" respecitvely:
-///
-/// ```text
-/// lo = None, hi = Some(x) -> a[..x]
-/// lo = Some(x), hi = None -> a[x..]
-/// lo = None, hi = None -> a[..]
-/// ```
-///
 /// If `a` contains `x`, insert it just *after* the *rightmost* occurence of `x`.
-pub fn insort_right_slice_by<T, F>(
-    a: &mut Vec<T>,
-    x: T,
-    lo: Option<usize>,
-    hi: Option<usize>,
-    mut f: F,
-) where
+///
+/// # Panics
+///
+/// Panics if `within` is out of bounds of `a`.
+pub fn insort_right_slice_by<T, I, F>(a: &mut Vec<T>, x: T, within: I, mut f: F)
+where
+    I: RangeBounds<usize>,
     F: FnMut(&T, &T) -> Ordering,
 {
-    let lo = bisect_right_slice_by(a, lo, hi, |p| f(&x, p));
+    let lo = bisect_right_slice_by(a, within, |p| f(&x, p));
     a.insert(lo, x);
 }
 
-/// Return the index where `x` should be inserted in `a[lo..hi]`, assuming `a`
-/// is sorted. `None` for either `lo` or `hi` indicates "from the start" or "to the end"
-/// respecitvely:
-///
-/// ```text
-/// lo = None, hi = Some(x) -> a[..x]
-/// lo = Some(x), hi = None -> a[x..]
-/// lo = None, hi = None -> a[..]
-/// ```
+/// Return the index where `x` should be inserted in `a[within]`, assuming `a`
+/// is sorted.
 ///
 /// The return value `i` is such that all `e` in `a[..i]` have `e <= x`, and
 /// all `e` in `a[i..]` have `e > x`.
 /// - If `a` contains `x`, `a.insert(i, x)` will insert just *after* the
 ///   *rightmost* `x`.
-pub fn bisect_right_slice<T>(a: &[T], x: &T, lo: Option<usize>, hi: Option<usize>) -> usize
+///
+/// # Panics
+///
+/// Panics if `within` is out of bounds of `a`.
+pub fn bisect_right_slice<T, I>(a: &[T], x: &T, within: I) -> usize
 where
+    I: RangeBounds<usize>,
     T: Ord,
 {
-    bisect_right_slice_by(a, lo, hi, |p| x.cmp(p))
+    bisect_right_slice_by(a, within, |p| x.cmp(p))
 }
 
 /// Return the index where `x` should be inserted in `a`, assuming `a` is sorted.
@@ -105,7 +94,7 @@ pub fn bisect_right<T>(a: &[T], x: &T) -> usize
 where
     T: Ord,
 {
-    bisect_right_slice(a, x, None, None)
+    bisect_right_slice(a, x, ..)
 }
 
 /// Return the index where `x` should be inserted in `a`, assuming `a` is sorted, according to
@@ -123,35 +112,30 @@ pub fn bisect_right_by<T, F>(a: &[T], f: F) -> usize
 where
     F: FnMut(&T) -> Ordering,
 {
-    bisect_right_slice_by(a, None, None, f)
+    bisect_right_slice_by(a, .., f)
 }
 
-/// Return the index where a value should be inserted in `a[lo..hi]`, assuming it sorted,
+/// Return the index where a value should be inserted in `a[within]`, assuming it sorted,
 /// according to a comparator function.
 ///
 /// The comparator function should implement an order consistent with the sort order of the
 /// underlying slice, returning an order code that indicates whethers its argument is `Less`,
 /// `Equal` or `Greater` that the **desired target**.
 ///
-/// `None` for either `lo` or `hi` indicates "from the start" or "to the end"
-/// respecitvely:
-///
-/// ```text
-/// lo = None, hi = Some(x) -> a[..x]
-/// lo = Some(x), hi = None -> a[x..]
-/// lo = None, hi = None -> a[..]
-/// ```
-///
 /// The return value `i` is such that all `e` in `a[..i]` have `f(e) == Less | f(e) == Equal`, and
 /// all `e` in `a[i..]` have `f(e) == Greater`.
 /// - If `a` contains `x`, `a.insert(i, x)` will insert just *after* the
 ///   *rightmost* occurence of `x`.
-pub fn bisect_right_slice_by<T, F>(a: &[T], lo: Option<usize>, hi: Option<usize>, mut f: F) -> usize
+///
+/// # Panics
+///
+/// Panics if `within` is out of bounds of `a`.
+pub fn bisect_right_slice_by<T, I, F>(a: &[T], within: I, mut f: F) -> usize
 where
+    I: RangeBounds<usize>,
     F: FnMut(&T) -> Ordering,
 {
-    let mut lo = lo.unwrap_or(0);
-    let mut hi = hi.unwrap_or(a.len());
+    let (mut lo, mut hi) = bounds_to_indices(a, within);
     while lo < hi {
         let mid = (lo + hi) / 2;
         if f(&a[mid]) == Ordering::Less {
@@ -163,21 +147,19 @@ where
     lo
 }
 
-/// Insert `x` in `a[lo..hi]`, keeping it sorted assuming `a` is sorted. `None` for either `lo`
-/// or `hi` indicates "from the start" or "to the end" respecitvely:
-///
-/// ```text
-/// lo = None, hi = Some(x) -> a[..x]
-/// lo = Some(x), hi = None -> a[x..]
-/// lo = None, hi = None -> a[..]
-/// ```
+/// Insert `x` in `a[within]`, keeping it sorted assuming `a` is sorted.
 ///
 /// If `a` contains `x`, insert it just *before* the *leftmost* occurence of `x`.
-pub fn insort_left_slice<T>(a: &mut Vec<T>, x: T, lo: Option<usize>, hi: Option<usize>)
+///
+/// # Panics
+///
+/// Panics if `within` is out of bounds of `a`.
+pub fn insort_left_slice<T, I>(a: &mut Vec<T>, x: T, within: I)
 where
+    I: RangeBounds<usize>,
     T: Ord,
 {
-    insort_left_slice_by(a, x, lo, hi, T::cmp);
+    insort_left_slice_by(a, x, within, T::cmp);
 }
 
 /// Insert `x` in `a`, keeping it sorted assuming `a` is sorted.
@@ -202,57 +184,46 @@ where
     T: Ord,
     F: FnMut(&T, &T) -> Ordering,
 {
-    insort_left_slice_by(a, x, None, None, f);
+    insort_left_slice_by(a, x, .., f);
 }
 
-/// Insert x in `a[lo..hi]`, keeping it sorted, assuming `a` is sorted, according to a comparator
+/// Insert x in `a[within]`, keeping it sorted, assuming `a` is sorted, according to a comparator
 /// function.
 ///
 /// The comparator function should implement an order consistent with the sort order of the
 /// underlying slice.
 ///
-/// `None` for either `lo` or `hi` indicates "from the start" or "to the end"
-/// respecitvely:
-///
-/// ```text
-/// lo = None, hi = Some(x) -> a[..x]
-/// lo = Some(x), hi = None -> a[x..]
-/// lo = None, hi = None -> a[..]
-/// ```
-///
 /// If `a` contains `x`, insert it just *before* the *leftmost* occurence of `x`.
-pub fn insort_left_slice_by<T, F>(
-    a: &mut Vec<T>,
-    x: T,
-    lo: Option<usize>,
-    hi: Option<usize>,
-    mut f: F,
-) where
+///
+/// # Panics
+///
+/// Panics if `within` is out of bounds of `a`.
+pub fn insort_left_slice_by<T, I, F>(a: &mut Vec<T>, x: T, within: I, mut f: F)
+where
+    I: RangeBounds<usize>,
     F: FnMut(&T, &T) -> Ordering,
 {
-    let lo = bisect_right_slice_by(a, lo, hi, |p| f(&x, p));
+    let lo = bisect_right_slice_by(a, within, |p| f(&x, p));
     a.insert(lo, x);
 }
 
-/// Return the index where `x` should be inserted in `a[lo..hi]`, assuming `a`
-/// is sorted. `None` for either `lo` or `hi` indicates "from the start" or "to the end"
-/// respecitvely:
-///
-/// ```text
-/// lo = None, hi = Some(x) -> a[..x]
-/// lo = Some(x), hi = None -> a[x..]
-/// lo = None, hi = None -> a[..]
-/// ```
+/// Return the index where `x` should be inserted in `a[within]`, assuming `a`
+/// is sorted.
 ///
 /// The return value `i` is such that all `e` in `a[..i]` have `e < x`, and
 /// all `e` in `a[i..]` have `e >= x`.
 /// - If `a` contains `x`, `a.insert(i, x)` will insert just *before* the
 ///   *leftmost* `x`.
-pub fn bisect_left_slice<T>(a: &[T], x: &T, lo: Option<usize>, hi: Option<usize>) -> usize
+///
+/// # Panics
+///
+/// Panics if `within` is out of bounds of `a`.
+pub fn bisect_left_slice<T, I>(a: &[T], x: &T, within: I) -> usize
 where
+    I: RangeBounds<usize>,
     T: Ord,
 {
-    bisect_left_slice_by(a, lo, hi, |p| p.cmp(x))
+    bisect_left_slice_by(a, within, |p| p.cmp(x))
 }
 
 /// Return the index where `x` should be inserted in `a`, assuming `a` is sorted.
@@ -265,7 +236,7 @@ pub fn bisect_left<T>(a: &[T], x: &T) -> usize
 where
     T: Ord,
 {
-    bisect_left_slice(a, x, None, None)
+    bisect_left_slice(a, x, ..)
 }
 
 /// Return the index where a value should be inserted in `a`, assuming `a` is sorted, according to
@@ -283,35 +254,29 @@ pub fn bisect_left_by<T, F>(a: &[T], f: F) -> usize
 where
     F: FnMut(&T) -> Ordering,
 {
-    bisect_left_slice_by(a, None, None, f)
+    bisect_left_slice_by(a, .., f)
 }
 
-/// Return the index where a value should be inserted in `a[lo..hi]`, assuming it sorted,
+/// Return the index where a value should be inserted in `a[within]`, assuming it sorted,
 /// according to a comparator function.
 ///
 /// The comparator function should implement an order consistent with the sort order of the
 /// underlying slice, returning an order code that indicates whethers its argument is `Less`,
 /// `Equal` or `Greater` that the **desired target**.
 ///
-/// `None` for either `lo` or `hi` indicates "from the start" or "to the end"
-/// respecitvely:
-///
-/// ```text
-/// lo = None, hi = Some(x) -> a[..x]
-/// lo = Some(x), hi = None -> a[x..]
-/// lo = None, hi = None -> a[..]
-/// ```
-///
 /// The return value `i` is such that all `e` in `a[..i]` have `f(e) == Less`, and
 /// all `e` in `a[i..]` have `f(e) == Greater | f(e) == Equal`
 /// - If `a` contains `x`, `a.insert(i, x)` will insert just *before* the
 ///   *leftmost* `x`.
-pub fn bisect_left_slice_by<T, F>(a: &[T], lo: Option<usize>, hi: Option<usize>, mut f: F) -> usize
+/// # Panics
+///
+/// Panics if `within` is out of bounds of `a`.
+pub fn bisect_left_slice_by<T, I, F>(a: &[T], within: I, mut f: F) -> usize
 where
+    I: RangeBounds<usize>,
     F: FnMut(&T) -> Ordering,
 {
-    let mut lo = lo.unwrap_or(0);
-    let mut hi = hi.unwrap_or(a.len());
+    let (mut lo, mut hi) = bounds_to_indices(a, within);
     while lo < hi {
         let mid = (lo + hi) / 2;
         let cmp = f(&a[mid]);
@@ -322,6 +287,35 @@ where
         }
     }
     lo
+}
+
+/// Convert bounds to a `(lo, hi)`  pair for indexing into a slice of `a`.
+///
+/// # Panics
+///
+/// Panics if `within` is out of bounds of `a`.
+fn bounds_to_indices<T, I>(a: &[T], within: I) -> (usize, usize)
+where
+    I: RangeBounds<usize>,
+{
+    // TODO: Panics
+    let lo = match within.start_bound() {
+        Unbounded => 0,
+        Included(i) => *i,
+        Excluded(i) => i + 1,
+    };
+
+    let hi = match within.end_bound() {
+        Unbounded => a.len(),
+        Included(i) => i + 1,
+        Excluded(i) => *i,
+    };
+
+    if hi > a.len() {
+        panic!("index out of bounds")
+    }
+
+    (lo, hi)
 }
 
 #[cfg(test)]
@@ -452,6 +446,38 @@ mod tests {
         run_bisect_slice_tests(TestDirection::Left, LEFT_INT_CASES);
     }
 
+    #[test]
+    #[should_panic]
+    fn right_slice_index_out_of_bounds() {
+        let a: Vec<u32> = (0..10).collect();
+        // 10 does not fit within 5..10 so the search goes into the out of bounds range
+        bisect_right_slice(&a, &10, 5..15);
+    }
+
+    #[test]
+    #[should_panic]
+    fn left_slice_index_out_of_bounds() {
+        let a: Vec<u32> = (0..10).collect();
+        // 10 does not fit within 5..10 so the search goes into the out of bounds range
+        bisect_left_slice(&a, &10, 5..15);
+    }
+
+    #[test]
+    #[should_panic]
+    fn right_slice_index_out_of_bounds_when_not_searched() {
+        let a: Vec<u32> = (0..10).collect();
+        // 5 fits within 0..10 bounds so the search *doesnt* actually index into the out of bounds
+        bisect_right_slice(&a, &5, ..15);
+    }
+
+    #[test]
+    #[should_panic]
+    fn left_slice_index_out_of_bounds_when_not_searched() {
+        let a: Vec<u32> = (0..10).collect();
+        // 5 fits within 0..10 bounds so the search *doesnt* actually index into the out of bounds
+        bisect_left_slice(&a, &5, ..15);
+    }
+
     fn run_bisect_tests<T: Clone + Ord>(direction: TestDirection, test_cases: TestCollection<T>) {
         let bisect_func = match direction {
             TestDirection::Left => bisect_left,
@@ -478,7 +504,7 @@ mod tests {
             for lo in 0..4 {
                 for hi in 3..8 {
                     let hi = std::cmp::min(data.len(), hi);
-                    let ip = bisect_func(&data, &test_case.x, Some(lo), Some(hi));
+                    let ip = bisect_func(&data, &test_case.x, lo..hi);
 
                     match direction {
                         TestDirection::Left => {
